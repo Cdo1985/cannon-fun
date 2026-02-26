@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CANNON SMASHER</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <div id="ui-layer">
+            <div id="hud">
+                <div id="distance-display">Dist: 0m</div>
+                <div id="speed-display">Speed: 0</div>
+                <div id="money-display">$0</div>
+            </div>
+            
+            <div id="start-screen" class="screen">
+                <h1>CANNON<br>SMASHER</h1>
+                <p>Click and Hold to Aim, Release to FIRE!</p>
+                <button id="start-btn" class="primary-btn">LAUNCH</button>
+                <button id="shop-btn" class="secondary-btn">UPGRADES</button>
+            </div>
+
+            <div id="result-screen" class="screen hidden">
+                <h2>RUN FINISHED!</h2>
+                <p id="run-summary">Distance: 0m | Walls: 0</p>
+                <p id="reward-text">Earned: $0</p>
+                <div class="button-group">
+                    <button id="restart-btn" class="primary-btn">RETRY</button>
+                    <button id="result-shop-btn" class="secondary-btn">UPGRADES</button>
+                </div>
+            </div>
+
+            <div id="shop-screen" class="screen hidden">
+                <h2>CANNON SHOP</h2>
+                <div id="upgrades-list">
+                    <!-- Upgrades populated by JS -->
+                </div>
+                <button id="close-shop-btn" class="secondary-btn">BACK</button>
+            </div>
+        </div>
+    </div>
+    <script src="game.js"></script>
+</body>
+</html>
