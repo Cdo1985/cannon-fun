@@ -14,6 +14,10 @@ const WALL_TYPES = {
     METAL: { color: '#8b949e', speedLoss: 4.0, money: 50, name: 'Metal' }
 };
 
+// --- Asset Loader ---
+const missileImg = new Image();
+missileImg.src = 'bb.png'; 
+
 // --- Game State ---
 let state = 'AIM'; 
 let player, cannon, world;
@@ -31,32 +35,60 @@ let upgrades = rawUpgrades ? JSON.parse(rawUpgrades) : {
     efficiency: { level: 1, max: 20, cost: 75, factor: 0.92 },
     dashes: { level: 0, max: 5, cost: 500, factor: 1 }
 };
-// Ensure 'dashes' exists for players with old saves
 if (!upgrades.dashes) upgrades.dashes = { level: 0, max: 5, cost: 500, factor: 1 };
 
 // --- Classes ---
 
 class Particle {
-    constructor(x, y, color, speed = 5) {
+    constructor(x, y, color, speed = 5, type = 'CONCRETE') {
         this.x = x;
         this.y = y;
         this.vx = (Math.random() - 0.5) * speed;
         this.vy = (Math.random() - 0.5) * speed;
-        this.size = Math.random() * 4 + 2;
         this.color = color;
         this.life = 1.0;
+        this.type = type;
+
+        if (type === 'GLASS') {
+            this.size = Math.random() * 2 + 1;
+            this.decay = Math.random() * 0.015 + 0.005;
+            this.gravity = 0.05;
+            this.drag = 0.98;
+        } else if (type === 'METAL') {
+            this.size = Math.random() * 5 + 3;
+            this.decay = 0.04;
+            this.gravity = 0.3;
+            this.drag = 0.95; 
+        } else {
+            this.size = Math.random() * 4 + 2;
+            this.decay = 0.02;
+            this.gravity = 0.1;
+            this.drag = 1.0;
+        }
     }
     update() {
+        this.vx *= this.drag;
+        this.vy *= this.drag;
         this.x += this.vx;
         this.y += this.vy;
-        this.vy += 0.1;
-        this.life -= 0.02;
+        this.vy += this.gravity;
+        this.life -= this.decay;
     }
     draw() {
         ctx.save();
         ctx.globalAlpha = Math.max(0, this.life);
         ctx.fillStyle = this.color;
-        ctx.fillRect(this.x - cameraX, this.y, this.size, this.size);
+        
+        if (this.type === 'GLASS') {
+            ctx.beginPath();
+            ctx.moveTo(this.x - cameraX, this.y);
+            ctx.lineTo(this.x - cameraX + this.size, this.y + this.size * 2);
+            ctx.lineTo(this.x - cameraX - this.size, this.y + this.size);
+            ctx.closePath();
+            ctx.fill();
+        } else {
+            ctx.fillRect(this.x - cameraX, this.y, this.size, this.size);
+        }
         ctx.restore();
     }
 }
@@ -68,9 +100,8 @@ class Player {
         this.y = canvas.height - 150;
         this.vx = 0;
         this.vy = 0;
-        this.w = 30;
+        this.w = 55;
         this.h = 30;
-        this.rot = 0;
         this.isFlying = false;
         this.dashCount = upgrades.dashes.level;
     }
@@ -80,7 +111,7 @@ class Player {
             this.vy = -6;
             this.dashCount--;
             applyShake(15);
-            createParticles(this.x, this.y, 30, '#fff', 10);
+            createParticles(this.x, this.y, 30, '#fff', 10, 'CONCRETE');
         }
     }
     update() {
@@ -89,11 +120,10 @@ class Player {
         this.vx *= FRICTION;
         this.x += this.vx;
         this.y += this.vy;
-        this.rot += this.vx * 0.02;
 
         if (this.y + this.h > canvas.height - 50) {
             this.y = canvas.height - 50 - this.h;
-            this.vx *= 0.994; // Even smoother slide
+            this.vx *= 0.994; 
             this.vy = 0;
             if (Math.abs(this.vx) < 0.2) this.stop();
         }
@@ -105,12 +135,13 @@ class Player {
     draw() {
         ctx.save();
         ctx.translate(this.x - cameraX, this.y);
-        ctx.rotate(this.rot);
-        ctx.fillStyle = '#ff7b72';
-        ctx.fillRect(-this.w/2, -this.h/2, this.w, this.h);
-        ctx.strokeStyle = '#fff';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(-this.w/2, -this.h/2, this.w, this.h);
+        
+        if (missileImg.complete) {
+            ctx.drawImage(missileImg, -this.w/2, -this.h/2, this.w, this.h);
+        } else {
+            ctx.fillStyle = '#ff7b72';
+            ctx.fillRect(-this.w/2, -this.h/2, this.w, this.h);
+        }
         ctx.restore();
 
         if (this.isFlying && upgrades.dashes.level > 0) {
@@ -214,8 +245,8 @@ class Obstacle {
 
 // --- Functions ---
 
-function createParticles(x, y, count, color, speed) {
-    for (let i = 0; i < count; i++) particles.push(new Particle(x, y, color, speed));
+function createParticles(x, y, count, color, speed, type = 'CONCRETE') {
+    for (let i = 0; i < count; i++) particles.push(new Particle(x, y, color, speed, type));
 }
 
 function applyShake(amt) { shake = amt; }
@@ -250,14 +281,12 @@ function resize() {
 }
 
 function update() {
-    // Gradient Sky
     let grad = ctx.createLinearGradient(0, 0, 0, canvas.height);
     grad.addColorStop(0, '#0d1117');
     grad.addColorStop(1, '#1f6feb');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Sun
     ctx.fillStyle = '#f2cc60';
     ctx.beginPath(); ctx.arc(canvas.width - 100, 100, 40, 0, Math.PI*2); ctx.fill();
 
@@ -267,7 +296,6 @@ function update() {
         shake *= 0.9;
     }
 
-    // Ground
     ctx.fillStyle = '#21262d';
     ctx.fillRect(0, canvas.height - 50, canvas.width, 50);
 
@@ -315,10 +343,27 @@ function checkCollisions() {
                     player.vx -= loss;
                     obs.active = false;
                     wallCount++;
-                    applyShake(10);
-                    createParticles(obs.x + 20, player.y, 15, data.color, 8);
-                    if (obs.wallType === 'GOLD') money += 200;
-                    else money += data.money;
+                    
+                    if (obs.wallType === 'GLASS') {
+                        applyShake(4);
+                        createParticles(obs.x + 20, player.y, 45, data.color, 14, 'GLASS'); 
+                        money += data.money;
+                    } 
+                    else if (obs.wallType === 'METAL') {
+                        applyShake(24);
+                        createParticles(obs.x + 20, player.y, 12, data.color, 4, 'METAL');
+                        money += data.money;
+                    } 
+                    else if (obs.wallType === 'GOLD') {
+                        applyShake(12);
+                        createParticles(obs.x + 20, player.y, 30, data.color, 9, 'GOLD');
+                        money += 200;
+                    } 
+                    else {
+                        applyShake(12);
+                        createParticles(obs.x + 20, player.y, 20, data.color, 7, 'CONCRETE');
+                        money += data.money;
+                    }
                 } else {
                     player.vx = 0;
                 }
@@ -326,12 +371,12 @@ function checkCollisions() {
                 player.vx *= BIRD_SLOW;
                 obs.active = false;
                 applyShake(5);
-                createParticles(obs.x + 20, obs.y + 20, 10, '#ff7b72', 5);
+                createParticles(obs.x + 20, obs.y + 20, 10, '#ff7b72', 5, 'CONCRETE');
             } else if (obs.type === 'booster') {
                 player.vy = -12;
                 player.vx += 18;
                 applyShake(15);
-                createParticles(obs.x + 20, obs.y + 20, 20, '#238636', 10);
+                createParticles(obs.x + 20, obs.y + 20, 20, '#238636', 10, 'CONCRETE');
             }
         }
     });
@@ -349,7 +394,7 @@ function launch() {
     player.vy = Math.sin(cannon.angle) * finalPower;
     player.isFlying = true;
     applyShake(25);
-    createParticles(cannon.x, cannon.y, 50, '#f2cc60', 15);
+    createParticles(cannon.x, cannon.y, 50, '#f2cc60', 15, 'CONCRETE');
 }
 
 function finishRun() {
